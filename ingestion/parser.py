@@ -153,17 +153,20 @@ class ExcelParser:
 
         df = pd.read_excel(buffer, sheet_name=selected_sheet, skiprows=header_row_idx)
 
-        # Normalizar nombres de columnas a snake_case
+        # Normalizar nombres de columnas a snake_case garantizando unicidad absoluta
         clean_cols = []
-        seen_cols: Dict[str, int] = {}
+        used_names = set()
         for col in df.columns:
             base_col = self.to_snake_case(str(col))
-            if base_col in seen_cols:
-                seen_cols[base_col] += 1
-                clean_cols.append(f"{base_col}_{seen_cols[base_col]}")
-            else:
-                seen_cols[base_col] = 0
-                clean_cols.append(base_col)
+            # Quitar sufijos numéricos previos generados por pandas (ej. .1, _1) para agrupar raíces
+            base_root = re.sub(r"_\d+$", "", base_col)
+            candidate = base_root
+            counter = 1
+            while candidate in used_names:
+                candidate = f"{base_root}_{counter}"
+                counter += 1
+            used_names.add(candidate)
+            clean_cols.append(candidate)
 
         df.columns = clean_cols
 

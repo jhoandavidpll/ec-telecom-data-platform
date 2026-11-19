@@ -48,6 +48,7 @@ def run_pipeline(
     config_path: str = "config/sources.yml",
     force_local: bool = False,
     dry_run: bool = False,
+    latest_only: bool = True,
 ) -> None:
     """Ejecuta el ciclo de vida completo de ingesta para las fuentes configuradas."""
     start_time = time.time()
@@ -101,6 +102,14 @@ def run_pipeline(
                 continue
 
             logger.info(f"Descargas candidatas encontradas: {len(links)}")
+
+            # Optimización arquitectónica: el archivo más reciente ya contiene todo el acumulado histórico
+            if latest_only and len(links) > 1:
+                logger.info(
+                    f"Modo 'latest-only' activo: procesando únicamente el corte más reciente ({links[0]['filename']}) "
+                    f"que contiene el acumulado total. (Usa --all-history si deseas descargar todos los {len(links)} archivos)."
+                )
+                links = [links[0]]
 
             # 2. Descargar y procesar cada archivo encontrado
             for item in links:
@@ -184,6 +193,12 @@ def main():
         help="Ejecutar descubrimiento y descarga sin escribir destino final",
     )
 
+    parser.add_argument(
+        "--all-history",
+        action="store_true",
+        help="Descargar todos los archivos históricos del portal en lugar de solo el más reciente acumulado",
+    )
+
     args = parser.parse_args()
     run_pipeline(
         env=args.env,
@@ -191,6 +206,7 @@ def main():
         config_path=args.config,
         force_local=args.local,
         dry_run=args.dry_run,
+        latest_only=not args.all_history,
     )
 
 

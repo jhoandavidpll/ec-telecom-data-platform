@@ -73,3 +73,32 @@ def test_parse_excel_to_dataframe_and_parquet():
     table = pq.read_table(parquet_buffer)
     assert table.num_rows == 3
     assert "ano" in table.column_names
+
+
+def test_deduplicate_columns_edge_case():
+    parser = ExcelParser()
+
+    # Simular DataFrame con columnas duplicadas estilo ARCOTEL: HSPA, HSPA.1, HSPA (de nuevo)
+    mock_data = [
+        ["Mes", "CDMA", "GSM", "HSPA", "HSPA", "HSPA"],
+        [2024, 10, 20, 30, 40, 50],
+    ]
+    excel_buffer = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        pd.DataFrame(mock_data).to_excel(writer, sheet_name="Tecnologia", header=False, index=False)
+    excel_buffer.seek(0)
+
+    df = parser.parse_excel_to_dataframe(
+        excel_data=excel_buffer,
+        source_id="sma_lineas_tecnologia",
+        source_filename="test_tecnologia.xlsx",
+        header_keywords=["mes", "cdma", "gsm"],
+    )
+
+    # Convertir a Parquet para asegurar que pyarrow no lance Duplicate column names
+    parquet_buf = parser.dataframe_to_parquet_buffer(df)
+    table = pq.read_table(parquet_buf)
+    assert len(set(table.column_names)) == len(table.column_names)
+    assert "hspa" in table.column_names
+    assert "hspa_1" in table.column_names
+    assert "hspa_2" in table.column_names

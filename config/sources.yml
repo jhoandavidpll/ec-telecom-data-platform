@@ -12,8 +12,8 @@ sources:
     portal_url: "https://www.arcotel.gob.ec/lineas-activas/"
     # Regex para identificar el enlace directo al archivo Excel en el DOM
     link_pattern: "(?i)(?=.*1[._-]1[._-]1|.*participaci|.*densidad).*\\.xlsx?"
-    # Pestañas candidatas en el Excel (se descartan índices y gráficos)
-    sheet_pattern: "(?i)(datos|base|evolucion|1[._-]1[._-]1|participaci|densidad)"
+    # Pestañas candidatas en el Excel (se priorizan series de evolución histórica)
+    sheet_pattern: "(?i)(evolucion|evolución|histori|serie|datos|base|1[._-]1[._-]1|participaci|densidad)"
     # Palabras clave para detectar dinámicamente la fila de cabecera
     header_keywords:
       - "anio"
