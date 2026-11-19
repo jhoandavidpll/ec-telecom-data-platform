@@ -1,0 +1,72 @@
+# ==============================================================================
+# Catálogo Metadata-Driven de Fuentes de ARCOTEL (Ecuador)
+# Dominio Inicial: Servicio Móvil Avanzado (SMA) - lineas-activas
+# ==============================================================================
+
+sources:
+  - id: "sma_lineas_servicio"
+    domain: "sma"
+    code: "1.1.1"
+    title: "Densidad de Líneas del SMA y Participación de Mercado"
+    description: "Estadísticas mensuales de líneas activas por operadora y densidad de penetración poblacional"
+    portal_url: "https://www.arcotel.gob.ec/lineas-activas/"
+    # Regex para identificar el enlace directo al archivo Excel en el DOM
+    link_pattern: "(?i)(?=.*1[._-]1[._-]1|.*participaci|.*densidad).*\\.xlsx?"
+    # Pestañas candidatas en el Excel (se descartan índices y gráficos)
+    sheet_pattern: "(?i)(datos|base|evolucion|1[._-]1[._-]1|participaci|densidad)"
+    # Palabras clave para detectar dinámicamente la fila de cabecera
+    header_keywords:
+      - "anio"
+      - "año"
+      - "mes"
+      - "operadora"
+      - "operador"
+      - "empresa"
+      - "lineas"
+      - "participacion"
+      - "densidad"
+    target_table: "raw_sma_lineas_servicio"
+    dbfs_path_template: "dbfs:/FileStore/{env}/bronze/arcotel/sma/sma_lineas_servicio/"
+
+  - id: "sma_lineas_modalidad"
+    domain: "sma"
+    code: "1.1.2"
+    title: "Líneas Activas del SMA por Modalidad (Pospago / Prepago)"
+    description: "Distribución mensual de líneas en modalidad contrato (pospago) vs prepago"
+    portal_url: "https://www.arcotel.gob.ec/lineas-activas/"
+    link_pattern: "(?i)(?=.*1[._-]1[._-]2|.*modalidad).*\\.xlsx?"
+    sheet_pattern: "(?i)(datos|base|evolucion|1[._-]1[._-]2|modalidad|prepago|pospago)"
+    header_keywords:
+      - "anio"
+      - "año"
+      - "mes"
+      - "operadora"
+      - "operador"
+      - "prepago"
+      - "pospago"
+      - "modalidad"
+      - "total"
+    target_table: "raw_sma_lineas_modalidad"
+    dbfs_path_template: "dbfs:/FileStore/{env}/bronze/arcotel/sma/sma_lineas_modalidad/"
+
+  - id: "sma_lineas_tecnologia"
+    domain: "sma"
+    code: "1.1.3"
+    title: "Líneas Activas del SMA por Tecnología (2G / 3G / 4G / 5G)"
+    description: "Evolución de líneas activas según tecnología de red móvil"
+    portal_url: "https://www.arcotel.gob.ec/lineas-activas/"
+    link_pattern: "(?i)(?=.*1[._-]1[._-]3|.*tecnolog).*\\.xlsx?"
+    sheet_pattern: "(?i)(datos|base|evolucion|1[._-]1[._-]3|tecnolog)"
+    header_keywords:
+      - "anio"
+      - "año"
+      - "mes"
+      - "operadora"
+      - "operador"
+      - "tecnologia"
+      - "2g"
+      - "3g"
+      - "4g"
+      - "5g"
+    target_table: "raw_sma_lineas_tecnologia"
+    dbfs_path_template: "dbfs:/FileStore/{env}/bronze/arcotel/sma/sma_lineas_tecnologia/"

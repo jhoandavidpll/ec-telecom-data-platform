@@ -60,11 +60,20 @@ arcotel_dv:
    ```
 
 2. **Crear entorno virtual e instalar dependencias:**
+
+   *Opción Recomendada (con [`uv`](https://docs.astral.sh/uv/) — ultra rápido):*
    ```bash
-   python3 -m venv .venv
+   uv venv .venv
    source .venv/bin/activate        # En macOS / Linux
    # .venv\Scripts\activate         # En Windows
 
+   uv pip install -r requirements.txt
+   ```
+
+   *Opción Tradicional (`venv` + `pip`):*
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
    python3 -m pip install -r requirements.txt
    ```
 
