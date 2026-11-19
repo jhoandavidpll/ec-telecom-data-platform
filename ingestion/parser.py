@@ -177,7 +177,7 @@ class ExcelParser:
             ~df[first_col]
             .astype(str)
             .str.lower()
-            .str.contains(r"^(fuente|nota|elaborad|total general)", regex=True, na=False)
+            .str.contains(r"^(?:fuente|nota|elaborad|total general)", regex=True, na=False)
         ]
 
         # Inyectar columnas técnicas de auditoría para la capa Bronze
