@@ -1,0 +1,90 @@
+# ==============================================================================
+# Entorno Local, Secretos y Variables de Entorno
+# ==============================================================================
+.env
+.env.*
+!.env.example
+*.token
+databricks.cfg
+
+# Bloc de notas / procesos locales
+procesos/
+scratch/
+
+# ==============================================================================
+# Python & Entornos Virtuales
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+docs/
+
+# ==============================================================================
+# dbt (Data Build Tool)
+# ==============================================================================
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+target/
+dbt_packages/
+logs/
+
+# ==============================================================================
+# Datos Locales, Archivos Temporales y Descargas (Evitar datos pesados en Git)
+# ==============================================================================
+data/
+*.parquet
+*.xlsx
+*.xls
+*.csv
+*.json
+!config/*.yml
+!config/*.yaml
+
+# ==============================================================================
+# MLOps & Machine Learning (Pesos, Artefactos y Logs)
+# ==============================================================================
+mlruns/
+mlartifacts/
+*.pkl
+*.joblib
+*.onnx
+*.h5
+wandb/
+.pytest_cache/
+
+# ==============================================================================
+# Editores y Sistema Operativo
+# ==============================================================================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

@@ -1,0 +1,36 @@
+# --- dbt & Databricks ---
+
+dbt-core==1.10.18
+
+dbt-databricks>=1.10.0,<2.0.0
+
+
+
+# --- Ingesta, Web Scraping y Procesamiento Parquet ---
+
+requests>=2.32.0
+
+beautifulsoup4>=4.12.3
+
+pandas>=2.2.0
+
+openpyxl>=3.1.5
+
+pyarrow>=18.0.0
+
+pyyaml>=6.0.2
+
+
+
+# --- Calidad de Código, Linting y Variables de Entorno ---
+
+pre-commit==4.3.0
+
+python-dotenv==1.2.1
+
+pytest>=8.0.0
+
+sqlfluff>=3.0.0
+
+sqlfluff-templater-dbt>=3.0.0
+
