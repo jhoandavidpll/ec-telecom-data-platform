@@ -117,6 +117,53 @@ class ExcelParser:
         )
         return best_row_idx, best_headers
 
+    def build_multilevel_columns(
+        self, row_top: pd.Series, row_sub: pd.Series, num_cols: int
+    ) -> List[str]:
+        """
+        Combina una cabecera jerárquica de 2 filas:
+        Fila Superior (Operadora / Entidad) + Fila Inferior (Servicio / Tecnología / Modalidad).
+        Propaga los valores combinados (ffill) y asegura nombres semánticos únicos.
+        """
+        s_top = pd.Series(row_top).iloc[:num_cols].ffill()
+        s_sub = pd.Series(row_sub).iloc[:num_cols]
+
+        combined = []
+        used = set()
+
+        for t_val, s_val in zip(s_top, s_sub):
+            t_clean = self.to_snake_case(str(t_val)) if pd.notna(t_val) and str(t_val).strip() else ""
+            s_clean = self.to_snake_case(str(s_val)) if pd.notna(s_val) and str(s_val).strip() else ""
+
+            # Simplificar nombres de empresas largas (ej. conecel_s_a -> conecel, cnt_ep -> cnt)
+            t_clean = re.sub(r"_(s_a|ep|s_a_s|e_p)$", "", t_clean)
+
+            if t_clean and s_clean:
+                if t_clean in s_clean:
+                    cand = s_clean
+                elif s_clean in t_clean:
+                    cand = t_clean
+                else:
+                    cand = f"{t_clean}_{s_clean}"
+            elif t_clean:
+                cand = t_clean
+            elif s_clean:
+                cand = s_clean
+            else:
+                cand = "col"
+
+            # Garantizar unicidad
+            root = re.sub(r"_\d+$", "", cand)
+            final = root
+            counter = 1
+            while final in used:
+                final = f"{root}_{counter}"
+                counter += 1
+            used.add(final)
+            combined.append(final)
+
+        return combined
+
     def parse_excel_to_dataframe(
         self,
         excel_data: Union[io.BytesIO, bytes, str],
@@ -142,33 +189,59 @@ class ExcelParser:
             buffer.seek(0)
 
         # Leer primeras filas crudas para detectar encabezado
-        df_preview = pd.read_excel(buffer, sheet_name=selected_sheet, header=None, nrows=20)
+        df_preview = pd.read_excel(buffer, sheet_name=selected_sheet, header=None, nrows=25)
 
         keywords = header_keywords or ["anio", "mes", "operadora", "lineas", "total", "participacion"]
         header_row_idx, _ = self.detect_header_row(df_preview, keywords)
 
-        # Rebobinar y leer datos a partir de la fila de encabezado detectada
+        # Verificar si la fila siguiente corresponde a un segundo nivel de encabezado (servicios / tecnologías)
+        is_two_level = False
+        sub_row_idx = header_row_idx + 1
+        if sub_row_idx < len(df_preview):
+            row_sub_vals = df_preview.iloc[sub_row_idx].dropna().astype(str).tolist()
+            normalized_sub = [self.to_snake_case(v) for v in row_sub_vals]
+            sub_keywords = [
+                "telefonia", "internet", "datos", "prepago", "pospago",
+                "ttup", "2g", "3g", "4g", "5g", "gsm", "cdma", "umts", "lte", "hspa"
+            ]
+            matches = sum(1 for val in normalized_sub if any(sk in val for sk in sub_keywords))
+            # Si hay 2 o más subcolumnas típicas reconocidas, es una cabecera jerárquica
+            if matches >= 2:
+                is_two_level = True
+                logger.info(
+                    f"Detectada cabecera jerárquica multinivel (2 filas) en índices {header_row_idx} y {sub_row_idx}"
+                )
+
+        # Rebobinar y leer datos a partir de la fila de datos
         if hasattr(buffer, "seek"):
             buffer.seek(0)
 
-        df = pd.read_excel(buffer, sheet_name=selected_sheet, skiprows=header_row_idx)
+        if is_two_level:
+            # Leer datos saltando ambas filas de encabezado
+            df = pd.read_excel(buffer, sheet_name=selected_sheet, skiprows=header_row_idx + 2, header=None)
+            clean_cols = self.build_multilevel_columns(
+                df_preview.iloc[header_row_idx], df_preview.iloc[sub_row_idx], num_cols=len(df.columns)
+            )
+            df.columns = clean_cols
+        else:
+            df = pd.read_excel(buffer, sheet_name=selected_sheet, skiprows=header_row_idx)
 
-        # Normalizar nombres de columnas a snake_case garantizando unicidad absoluta
-        clean_cols = []
-        used_names = set()
-        for col in df.columns:
-            base_col = self.to_snake_case(str(col))
-            # Quitar sufijos numéricos previos generados por pandas (ej. .1, _1) para agrupar raíces
-            base_root = re.sub(r"_\d+$", "", base_col)
-            candidate = base_root
-            counter = 1
-            while candidate in used_names:
-                candidate = f"{base_root}_{counter}"
-                counter += 1
-            used_names.add(candidate)
-            clean_cols.append(candidate)
+            # Normalizar nombres de columnas a snake_case garantizando unicidad absoluta
+            clean_cols = []
+            used_names = set()
+            for col in df.columns:
+                base_col = self.to_snake_case(str(col))
+                # Quitar sufijos numéricos previos generados por pandas (ej. .1, _1) para agrupar raíces
+                base_root = re.sub(r"_\d+$", "", base_col)
+                candidate = base_root
+                counter = 1
+                while candidate in used_names:
+                    candidate = f"{base_root}_{counter}"
+                    counter += 1
+                used_names.add(candidate)
+                clean_cols.append(candidate)
 
-        df.columns = clean_cols
+            df.columns = clean_cols
 
         # Eliminar filas completamente vacías
         df.dropna(how="all", inplace=True)

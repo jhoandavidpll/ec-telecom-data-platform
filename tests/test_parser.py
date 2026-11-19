@@ -133,3 +133,48 @@ def test_mixed_types_arrow_conversion():
     table = pq.read_table(parquet_buf)
     assert "mes_ano" in table.column_names
     assert table.schema.field("mes_ano").type == pa.string()
+
+
+def test_multilevel_header_parsing():
+    parser = ExcelParser()
+
+    # Simular cabecera multinivel exacta de ARCOTEL (1.1.1 Líneas por servicio)
+    mock_data = [
+        ["AGENCIA DE REGULACIÓN Y CONTROL", None, None, None, None, None, None],
+        ["MES/AÑO", "CONECEL S.A.", None, None, "TOTAL CONECEL", "OTECEL S.A.", None],  # Fila 1 (Nivel 1)
+        [None, "TELEFONIA", "INTERNET", "DATOS", None, "TELEFONIA", "DATOS"],          # Fila 2 (Nivel 2)
+        ["Sep 2013", 11411742, 475061, None, 11886803, 4909143, None],                # Fila de datos 1
+        ["Jul 2014", 9130931, 382987, 166497, 12246004, 3669534, 129299],             # Fila de datos 2 (con nueva tecnología)
+    ]
+    excel_buffer = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        pd.DataFrame(mock_data).to_excel(writer, sheet_name="Líneas por servicio", header=False, index=False)
+    excel_buffer.seek(0)
+
+    df = parser.parse_excel_to_dataframe(
+        excel_data=excel_buffer,
+        source_id="sma_lineas_servicio",
+        source_filename="1.1.1-Lineas-activas.xlsx",
+        sheet_pattern="(?i)l[ií]neas.*servicio",
+        header_keywords=["mes", "conecel", "otecel", "total"],
+    )
+
+    # Validar que detectó y combinó la cabecera jerárquica
+    assert len(df) == 2
+    assert "mes_ano" in df.columns
+    assert "conecel_telefonia" in df.columns
+    assert "conecel_internet" in df.columns
+    assert "conecel_datos" in df.columns
+    assert "total_conecel" in df.columns
+    assert "otecel_telefonia" in df.columns
+    assert "otecel_datos" in df.columns
+
+    # Validar datos reales
+    assert df["conecel_telefonia"].iloc[0] == 11411742
+    assert df["conecel_telefonia"].iloc[1] == 9130931
+    assert df["conecel_datos"].iloc[1] == 166497
+
+    # Validar Parquet
+    parquet_buf = parser.dataframe_to_parquet_buffer(df)
+    table = pq.read_table(parquet_buf)
+    assert table.num_rows == 2
