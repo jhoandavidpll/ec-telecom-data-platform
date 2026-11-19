@@ -39,7 +39,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-docs/
+docs/_build/
 
 # ==============================================================================
 # dbt (Data Build Tool)
