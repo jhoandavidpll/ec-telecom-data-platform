@@ -35,7 +35,7 @@ sources:
     description: "Distribución mensual de líneas en modalidad contrato (pospago) vs prepago"
     portal_url: "https://www.arcotel.gob.ec/lineas-activas/"
     link_pattern: "(?i)(?=.*1[._-]1[._-]2|.*modalidad).*\\.xlsx?"
-    sheet_pattern: "(?i)(datos|base|evolucion|1[._-]1[._-]2|modalidad|prepago|pospago)"
+    sheet_pattern: "(?i)(evolucion|evolución|histori|serie|modalidad|datos|base|1[._-]1[._-]2|prepago|pospago)"
     header_keywords:
       - "anio"
       - "año"
@@ -56,7 +56,7 @@ sources:
     description: "Evolución de líneas activas según tecnología de red móvil"
     portal_url: "https://www.arcotel.gob.ec/lineas-activas/"
     link_pattern: "(?i)(?=.*1[._-]1[._-]3|.*tecnolog).*\\.xlsx?"
-    sheet_pattern: "(?i)(datos|base|evolucion|1[._-]1[._-]3|tecnolog)"
+    sheet_pattern: "(?i)(tecnolog.*pres|evolucion|evolución|histori|serie|datos|base|1[._-]1[._-]3|tecnolog)"
     header_keywords:
       - "anio"
       - "año"

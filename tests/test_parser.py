@@ -2,6 +2,7 @@
 
 import io
 import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 from ingestion.parser import ExcelParser
 
@@ -102,3 +103,33 @@ def test_deduplicate_columns_edge_case():
     assert "hspa" in table.column_names
     assert "hspa_1" in table.column_names
     assert "hspa_2" in table.column_names
+
+
+def test_mixed_types_arrow_conversion():
+    parser = ExcelParser()
+
+    # Simular una columna 'mes_ano' con tipos mixtos (números enteros de año y strings tipo 'Ene 2009')
+    mock_data = [
+        ["Mes_Ano", "Lineas"],
+        [2008, 1000],
+        ["Ene 2009", 1200],
+        [None, 1500],
+        ["Feb 2009", 1600],
+    ]
+    excel_buffer = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        pd.DataFrame(mock_data).to_excel(writer, sheet_name="Datos", header=False, index=False)
+    excel_buffer.seek(0)
+
+    df = parser.parse_excel_to_dataframe(
+        excel_data=excel_buffer,
+        source_id="sma_lineas_tecnologia",
+        source_filename="test_mixed.xlsx",
+        header_keywords=["mes", "lineas"],
+    )
+
+    # Validar que pyarrow no lance ArrowInvalid por tipos mixtos
+    parquet_buf = parser.dataframe_to_parquet_buffer(df)
+    table = pq.read_table(parquet_buf)
+    assert "mes_ano" in table.column_names
+    assert table.schema.field("mes_ano").type == pa.string()

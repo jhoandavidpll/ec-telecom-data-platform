@@ -197,7 +197,16 @@ class ExcelParser:
     def dataframe_to_parquet_buffer(self, df: pd.DataFrame) -> io.BytesIO:
         """Convierte un DataFrame normalizado a un buffer en memoria en formato Parquet."""
         parquet_buffer = io.BytesIO()
-        table = pa.Table.from_pandas(df, preserve_index=False)
+
+        # Sanear columnas de tipo object (mixtas) para evitar que PyArrow falle infiriendo tipos conflictivos
+        # (ej. columnas con años numéricos mezclados con meses de texto como 'Ene 2009')
+        df_clean = df.copy()
+        for col in df_clean.select_dtypes(include=["object"]).columns:
+            df_clean[col] = df_clean[col].apply(
+                lambda x: str(int(x)) if isinstance(x, float) and x.is_integer() else (str(x) if pd.notna(x) else None)
+            )
+
+        table = pa.Table.from_pandas(df_clean, preserve_index=False)
         pq.write_table(table, parquet_buffer, compression="snappy")
         parquet_buffer.seek(0)
         return parquet_buffer
