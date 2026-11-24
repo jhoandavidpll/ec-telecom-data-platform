@@ -1,6 +1,6 @@
-"""Pruebas unitarias para el módulo ingestion.scraper."""
+"""Pruebas unitarias para el módulo pipelines.arcotel.scraper."""
 
-from ingestion.scraper import ArcotelScraper
+from pipelines.arcotel.scraper import ArcotelScraper
 
 
 def test_unwrap_officeapps_url():

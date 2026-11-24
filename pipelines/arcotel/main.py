@@ -7,24 +7,36 @@ los estandariza a formato Parquet y los carga a la capa Bronze en Databricks DBF
 import argparse
 import logging
 import os
+import re
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import yaml
 from dotenv import load_dotenv
 
-from ingestion.databricks_uploader import DatabricksUploader
-from ingestion.parser import ExcelParser
-from ingestion.scraper import ArcotelScraper
+from pipelines.arcotel.databricks_uploader import DatabricksUploader
+from pipelines.arcotel.parser import ExcelParser
+from pipelines.arcotel.scraper import ArcotelScraper
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
-logger = logging.getLogger("ingestion.main")
+logger = logging.getLogger("pipelines.arcotel.main")
+
+
+def get_execution_partition_path(execution_time: datetime | None = None) -> str:
+    """
+    Genera la ruta de particionamiento jerárquico Hive (year=YYYY/month=MM/day=DD)
+    basado en la fecha exacta de ejecución/ingesta.
+    Garantiza reproducibilidad, auditoría e independencia del nombrado de archivos de origen.
+    """
+    ts = execution_time or datetime.now()
+    return f"year={ts.year}/month={ts.month:02d}/day={ts.day:02d}"
 
 
 def load_config(config_path: str = "config/sources.yml") -> Dict[str, Any]:
@@ -80,12 +92,13 @@ def run_pipeline(
     for src in sources:
         src_id = src["id"]
         src_domain = src["domain"]
+        target_table = src.get("target_table", f"{src_domain}_{src_id}")
         portal_url = src["portal_url"]
         link_pattern = src.get("link_pattern")
         sheet_pattern = src.get("sheet_pattern")
         header_keywords = src.get("header_keywords", [])
         dbfs_path_template = src.get(
-            "dbfs_path_template", "dbfs:/FileStore/{env}/bronze/arcotel/{domain}/{id}/"
+            "dbfs_path_template", "dbfs:/FileStore/{env}/bronze/arcotel/{domain}/{target_table}/"
         )
 
         logger.info("-" * 60)
@@ -138,12 +151,16 @@ def run_pipeline(
 
                 parquet_buffer = parser.dataframe_to_parquet_buffer(df)
 
-                # 4. Cargar a DBFS o almacenamiento local
+                # 4. Cargar a DBFS o almacenamiento local con Hive Partitioning jerárquico (year=YYYY/month=MM/day=DD)
+                partition_path = get_execution_partition_path()
+
                 dest_path = uploader.upload(
                     file_buffer=parquet_buffer,
                     destination_path=dbfs_path_template,
                     domain=src_domain,
+                    target_table=target_table,
                     filename=parquet_filename,
+                    partition_path=partition_path,
                     overwrite=True,
                 )
 

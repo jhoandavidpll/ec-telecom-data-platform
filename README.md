@@ -113,7 +113,7 @@ ENV=dev
 
 ```bash
 # Ejecutar ingesta local en ambiente DEV
-python ingestion/main.py
+python -m pipelines.arcotel.main --env dev --local
 
 # Construir y probar un modelo específico y sus dependencias en DEV
 dbt build --select +hub_operadora --project-dir dbt_project --profiles-dir dbt_project --target dev

@@ -50,6 +50,8 @@ dbt_project/logs/
 target/
 dbt_packages/
 logs/
+*.user.yml
+.user.yml
 
 # ==============================================================================
 # Datos Locales, Archivos Temporales y Descargas (Evitar datos pesados en Git)

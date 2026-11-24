@@ -1,0 +1,74 @@
+name: "Monthly Data Pipeline — ARCOTEL Lakehouse"
+
+on:
+  schedule:
+    # Ejecución mensual automática: El día 2 de cada mes a las 06:00 UTC
+    - cron: "0 6 2 * *"
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Ambiente de ejecución objetivo"
+        required: true
+        default: "prd"
+        type: choice
+        options:
+          - prd
+          - dev
+
+jobs:
+  monthly-ingestion-and-build:
+    name: "ARCOTEL Ingestion & Medallion Pipeline"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Evaluate Databricks Credentials
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.DATABRICKS_TOKEN }}" ]; then
+            echo "has_token=false" >> $GITHUB_OUTPUT
+            echo "Aviso: Corriendo en modo local/simulación sin secretos de Databricks configurados."
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Ingestion Pipeline (Scraper + Parquet to DBFS)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          ENV: ${{ github.event.inputs.env || 'prd' }}
+        run: |
+          TARGET_ENV="${{ github.event.inputs.env || 'prd' }}"
+          if [ "${{ steps.check-secrets.outputs.has_token }}" = "true" ]; then
+            echo "Ejecutando ingesta con subida a DBFS en ambiente: $TARGET_ENV"
+            python -m pipelines.arcotel.main --env "$TARGET_ENV"
+          else
+            echo "Ejecutando ingesta en modo local (Zero-Cloud) en ambiente: $TARGET_ENV"
+            python -m pipelines.arcotel.main --env "$TARGET_ENV" --local
+          fi
+
+      - name: Run dbt Build (Medallion & Data Vault)
+        if: steps.check-secrets.outputs.has_token == 'true'
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          ENV: ${{ github.event.inputs.env || 'prd' }}
+        run: |
+          TARGET_ENV="${{ github.event.inputs.env || 'prd' }}"
+          echo "Compilando y ejecutando modelos dbt en ambiente: $TARGET_ENV"
+          dbt deps --profiles-dir docker
+          dbt build --profiles-dir docker --target "$TARGET_ENV"

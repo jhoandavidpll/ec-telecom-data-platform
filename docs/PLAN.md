@@ -147,18 +147,16 @@ Al operar en un **único workspace de Databricks (plan gratuito)**, el aislamien
 | :--- | :--- | :--- | :--- |
 | **Desarrollo** | `dev` | `dev_bronze_arcotel`, `dev_silver_rv_sma`, `dev_gold_sma` | Pruebas locales desde la máquina de desarrollo. |
 | **Calidad (CI)** | `qas` | `qas_bronze_arcotel`, `qas_silver_rv_sma`, `qas_gold_sma` | Automático en GitHub Actions al abrir un **Pull Request** a `main`. |
-| **Producción** | `prd` | `bronze_arcotel`, `silver_rv_sma`, `gold_sma` | Automático al hacer **merge a `main`** y en el cron mensual. Power BI solo lee de aquí. |
+| **Producción** | `prd` | `prd_bronze_arcotel`, `prd_silver_rv_sma`, `prd_gold_sma` | Automático al hacer **merge a `main`** y en el cron mensual. Power BI solo lee de aquí. |
 
 * **Nunca hardcodear nombres de esquema en los modelos.** Cada modelo debe usar `config(schema=var("..."))` apuntando a variables centralizadas en `dbt_project.yml` (`bronze_schema`, `silver_rv_schema`, `silver_bv_schema`, `gold_schema`, `dq_schema`).
-* **Macro `macros/custom_schema.sql`:** Sobreescribe `generate_schema_name` para mantener nombres limpios en `prd` y prefijar con el `target.name` en `dev` y `qas`:
+* **Macro `macros/custom_schema.sql`:** Sobreescribe `generate_schema_name` para prefijar de manera simétrica y estricta con el `target.name` (`dev_`, `qas_`, `prd_`), eliminando cualquier ambigüedad en el catálogo compartido:
 
 ```sql
 {% macro generate_schema_name(custom_schema_name, node) -%}
     {%- set default_schema = target.schema -%}
     {%- if custom_schema_name is none -%}
         {{ default_schema }}
-    {%- elif target.name == 'prd' -%}
-        {{ custom_schema_name | trim }}
     {%- else -%}
         {{ target.name }}_{{ custom_schema_name | trim }}
     {%- endif -%}

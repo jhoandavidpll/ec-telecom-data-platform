@@ -1,10 +1,10 @@
-"""Pruebas unitarias para el módulo ingestion.parser."""
+"""Pruebas unitarias para el módulo pipelines.arcotel.parser."""
 
 import io
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from ingestion.parser import ExcelParser
+from pipelines.arcotel.parser import ExcelParser
 
 
 def test_to_snake_case():

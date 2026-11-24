@@ -130,15 +130,25 @@ class DatabricksUploader:
         file_buffer: Union[io.BytesIO, bytes],
         destination_path: str,
         domain: str,
+        target_table: str,
         filename: str,
+        partition_path: Optional[str] = None,
         overwrite: bool = True,
     ) -> str:
         """
         Punto de entrada unificado: sube a DBFS si las credenciales están presentes,
-        o a almacenamiento local si se ejecuta en modo desarrollo/offline.
+        o a almacenamiento local con soporte para particionamiento estilo Hive (year=YYYY/month=MM).
         """
-        # Formatear ruta final con el ambiente (dev | qas | prd)
-        final_dbfs_path = destination_path.format(env=self.env).rstrip("/") + f"/{filename}"
+        formatted_dest = destination_path.format(
+            env=self.env, domain=domain, target_table=target_table
+        ).rstrip("/")
+
+        if partition_path:
+            final_dbfs_path = f"{formatted_dest}/{partition_path}/{filename}"
+            relative_local = f"arcotel/{domain}/{target_table}/{partition_path}/{filename}"
+        else:
+            final_dbfs_path = f"{formatted_dest}/{filename}"
+            relative_local = f"arcotel/{domain}/{target_table}/{filename}"
 
         if self.is_cloud_ready:
             if not overwrite and self.file_exists_in_dbfs(final_dbfs_path):
@@ -148,5 +158,4 @@ class DatabricksUploader:
             self.upload_to_dbfs(file_buffer, final_dbfs_path, overwrite=overwrite)
             return final_dbfs_path
         else:
-            relative_local = f"{domain}/{filename}"
             return self.upload_to_local(file_buffer, relative_local)
