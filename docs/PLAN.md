@@ -29,30 +29,32 @@ Pipeline End-to-End de Ingeniería de Datos, Analítica y MLOps a **costo cero (
   * `DATABRICKS_TOKEN`
   * `DATABRICKS_CATALOG` (opcional según edición)
   * `ENV` (`dev` por defecto en local; `prd` en el pipeline mensual de producción)
-* `profiles.yml` ubicado en `dbt_project/profiles.yml` (usando `env_var(...)` con targets **`dev`**, **`qas`** y **`prd`**).
+* `profiles.yml` ubicado en `docker/profiles.yml` (usando `env_var(...)` con targets **`dev`**, **`qas`** y **`prd`**).
 
 ### Comandos dbt Frecuentes
 
 ```bash
 # Instalar packages (automate_dv, dbt_utils)
-dbt deps --project-dir dbt_project
+dbt deps --profiles-dir docker
 
-# Validar conexión a Databricks
-dbt debug --project-dir dbt_project --profiles-dir dbt_project --target dev
+# Validar conexión a Databricks o validar sintaxis de modelos
+dbt debug --profiles-dir docker --target dev
+dbt parse --profiles-dir docker
 
 # Build (run + test juntos — preferido antes de cada push)
-dbt build --select +mi_modelo --project-dir dbt_project --profiles-dir dbt_project --target dev
+dbt build --select +mi_modelo --profiles-dir docker --target dev
 
 # Ejecución por capa medallion o dominio usando tags canónicos
-dbt build --select "tag:layer:bronze" --target dev
-dbt build --select "tag:layer:silver_rv" --target qas
-dbt build --select "tag:layer:silver_bv" --target prd
-dbt build --select "tag:layer:gold" --target prd
-dbt build --select "tag:domain:sma" --target dev
-dbt build --select "tag:domain:sma,tag:layer:gold" --target prd
+dbt build --select "tag:layer:bronze" --profiles-dir docker --target dev
+dbt build --select "tag:layer:silver_rv" --profiles-dir docker --target qas
+dbt build --select "tag:layer:silver_bv" --profiles-dir docker --target prd
+dbt build --select "tag:layer:gold" --profiles-dir docker --target prd
+dbt build --select "tag:domain:sma" --profiles-dir docker --target dev
+dbt build --select "tag:domain:sma,tag:layer:gold" --profiles-dir docker --target prd
 
 # Documentación y linaje interactivo
-dbt docs generate && dbt docs serve
+dbt docs generate --profiles-dir docker --target dev
+dbt docs serve --profiles-dir docker
 ```
 
 ## 3. Flujo de Trabajo Git y CI/CD (GitHub Actions)
@@ -181,40 +183,48 @@ Todo modelo debe declarar sus tags en `config(tags=[...])` siguiendo esta taxono
 ```text
 ec-telecom-data-platform/
 ├── .github/workflows/
-│   ├── ci_pr.yml                       # Validación en PRs (ramas, linters + dbt build --target qas)
+│   ├── ci_pr.yml                       # Validación en PRs (ramas, linters, pytest + dbt parse / qas)
 │   ├── cd_prd.yml                      # Despliegue en merge a main (dbt build --target prd)
 │   └── monthly_pipeline.yml            # Orquestador mensual (ENV=prd: Scraping -> DBFS -> dbt prd)
 ├── config/
 │   └── sources.yml                     # Catálogo metadata-driven de URLs y reglas Excel ARCOTEL
-├── ingestion/
-│   ├── scraper.py                      # Descubrimiento dinámico de enlaces .xlsx en el DOM
-│   ├── parser.py                       # Detección de hoja de datos, normalización snake_case y Parquet
-│   ├── databricks_uploader.py          # Carga vía API REST a DBFS (/FileStore/{ENV}/...) e idempotencia
-│   └── main.py                         # Orquestador de la ingesta Python
+├── data/                               # Almacenamiento local simulación Lakehouse (.gitignore)
+│   └── bronze/
+│       └── {env}/
+│           └── arcotel/
+│               └── sma/
+│                   └── {tabla}/
+│                       └── year=YYYY/month=MM/day=DD/data.parquet
 ├── databricks_notebooks/
 │   └── 01_register_bronze_delta.py     # Registra/actualiza tablas Delta sobre los Parquet en DBFS
-├── dbt_project/
-│   ├── dbt_project.yml                 # Configuración central y vars de esquemas
-│   ├── packages.yml                    # automate_dv, dbt_utils
-│   ├── profiles.yml                    # Conexión Databricks vía env_var() (targets: dev, qas, prd)
-│   ├── macros/
-│   │   ├── custom_schema.sql           # Override de generate_schema_name para DEV/QAS/PRD
-│   │   └── clean_null_or_empty.sql     # Helpers de limpieza reutilizables
-│   └── models/
-│       ├── sources/
-│       │   └── sources.yml             # Declaración central de tablas raw de Databricks
-│       ├── bronze/sma/                 # raw_sma_*.sql
-│       ├── silver/sma/
-│       │   ├── rv/
-│       │   │   ├── stg/                # v_stg_sma_*.sql
-│       │   │   ├── hubs/               # hub_*.sql
-│       │   │   ├── links/              # link_*.sql
-│       │   │   └── sats/               # sat_*.sql
-│       │   └── bv/
-│       │       ├── pits/               # pit_*.sql + as_of_date_mensual.sql
-│       │       └── bsats/              # bsat_*.sql
-│       ├── gold/sma/                   # dim_*.sql, fct_*.sql, ml_features_sma.sql
-│       └── dq/                         # Validaciones de integridad de negocio
+├── docker/
+│   └── profiles.yml                    # Conexión Databricks vía env_var() (targets: dev, qas, prd)
+├── macros/
+│   ├── custom_schema.sql               # Override de generate_schema_name para DEV/QAS/PRD
+│   └── clean_null_or_empty.sql         # Helpers de limpieza reutilizables
+├── models/
+│   ├── sources/
+│   │   └── sources.yml                 # Declaración central de tablas Delta de Databricks
+│   ├── bronze/sma/                     # sma_*.sql (vistas sobre Delta)
+│   ├── silver/sma/
+│   │   ├── rv/
+│   │   │   ├── stg/                    # v_stg_sma_*.sql
+│   │   │   ├── hubs/                   # hub_*.sql
+│   │   │   ├── links/                  # link_*.sql
+│   │   │   └── sats/                   # sat_*.sql
+│   │   └── bv/
+│   │       ├── pits/                   # pit_*.sql + as_of_date_mensual.sql
+│   │       └── bsats/                  # bsat_*.sql
+│   ├── gold/sma/                       # dim_*.sql, fct_*.sql, ml_features_sma.sql
+│   └── dq/                             # Validaciones de integridad de negocio
+├── pipelines/
+│   └── arcotel/
+│       ├── __init__.py
+│       ├── scraper.py                  # Descubrimiento dinámico de enlaces .xlsx en el DOM
+│       ├── parser.py                   # Detección de hoja de datos, cabeceras multinivel y Parquet
+│       ├── databricks_uploader.py      # Carga vía REST a DBFS / Local con Hive Partitioning
+│       └── main.py                     # Orquestador CLI de la ingesta Python
+├── tests/                              # Pruebas unitarias Python y tests singulares dbt
 ├── docs/
 │   ├── guides/
 │   │   └── guia_bronze_silver_gold.md  # Guía paso a paso con AutomateDV en Databricks
@@ -226,7 +236,10 @@ ec-telecom-data-platform/
 ├── .env.example
 ├── .pre-commit-config.yaml
 ├── CONTRIBUTING.md
-│   └── PLAN.md
+├── dbt_project.yml                     # Configuración central dbt en la raíz
+├── Dockerfile                          # Contenedor reproducible de la plataforma
+├── package-lock.yml
+├── packages.yml                        # automate_dv, dbt_utils
 ├── README.md
 └── requirements.txt
 ```
@@ -235,25 +248,26 @@ ec-telecom-data-platform/
 
 ### Fase 0: Cimientos del Repositorio y Entorno
 
-* [ ] Crear repositorio en GitHub con rama `main` protegida, `.pre-commit-config.yaml` (Conventional Commits), `CONTRIBUTING.md`, `README.md` y secretos (`DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH`, `DATABRICKS_TOKEN`).
-* [ ] Configurar entorno en Databricks Free/Community Edition, definir `profiles.yml` con targets `dev`, `qas`, `prd` y validar conectividad local con `dbt debug --target dev`.
-* [ ] Crear `config/sources.yml` con la metadata de las 3 categorías iniciales de `lineas-activas`.
+* [x] Crear repositorio en GitHub con rama `main` protegida, `.pre-commit-config.yaml` (Conventional Commits), `CONTRIBUTING.md`, `README.md` y variables de entorno (`.env.example`).
+* [x] Configurar entorno local (`uv` + Python 3.12), definir `docker/profiles.yml` con targets `dev`, `qas`, `prd` y validar proyecto con `dbt parse`.
+* [x] Crear `config/sources.yml` con la metadata de las 3 categorías iniciales de `lineas-activas`.
 
 ### Fase 1: Ingesta Dinámica y Escalable (Web Scraping $\rightarrow$ Landing/Bronze)
 
-* [ ] Desarrollar `ingestion/scraper.py`: descarga HTML, decodifica enlaces de `view.officeapps.live.com` y filtra por regex definida en `config/sources.yml`.
-* [ ] Validar si el Excel más reciente de ARCOTEL contiene todo el histórico acumulado o solo el corte mensual (define estrategia de backfill inicial vs. carga mensual).
-* [ ] Desarrollar `ingestion/parser.py`: lee Excel en memoria (`io.BytesIO`), descarta pestañas de gráficos/índice, detecta dinámicamente la fila de encabezados, normaliza columnas a `snake_case`, añade metadatos (`load_date`, `record_source`, `source_file`) y convierte a Parquet (`pyarrow`).
-* [ ] Desarrollar `ingestion/databricks_uploader.py`: verifica archivos ya cargados (idempotencia) y sube solo los nuevos a DBFS (`/FileStore/{ENV}/bronze/arcotel/<dominio>/<tabla>/`).
-* [ ] Registrar las tablas Delta en Databricks y configurar `.github/workflows/monthly_pipeline.yml`.
+* [x] Desarrollar `pipelines/arcotel/scraper.py`: descarga HTML, decodifica enlaces de `view.officeapps.live.com` y filtra por regex definida en `config/sources.yml`.
+* [x] Validar que el Excel más reciente de ARCOTEL contiene todo el histórico acumulado (>208 meses desde 2008), evitando procesar archivos redundantes.
+* [x] Desarrollar `pipelines/arcotel/parser.py`: lee Excel en memoria (`io.BytesIO`), detecta cabeceras jerárquicas multinivel combinadas, sanea tipos mixtos, normaliza a `snake_case`, añade metadatos (`load_date`, `record_source`, `source_file`) y convierte a Parquet (`pyarrow` con compresión `snappy`).
+* [x] Desarrollar `pipelines/arcotel/databricks_uploader.py`: verifica archivos ya cargados (idempotencia), sube a DBFS (`/FileStore/{env}/bronze/arcotel/<dominio>/<tabla>/`) y soporta fallback local con particionamiento jerárquico Hive (`year=YYYY/month=MM/day=DD/`).
+* [x] Crear script de registro Delta `databricks_notebooks/01_register_bronze_delta.py` y configurar `.github/workflows/monthly_pipeline.yml`.
+* [x] Validar suite de pruebas unitarias (`pytest tests/`) al 100% en modo Zero-Cloud y compilar dbt en raíz.
 
 ### Fase 2: Capa Bronze y Silver Raw Vault (dbt + AutomateDV)
 
-* [ ] Configurar `dbt_project.yml`, `packages.yml` (`automate_dv`, `dbt_utils`), `macros/custom_schema.sql` (aislamiento `dev/qas/prd`) y `models/sources/sources.yml`.
-* [ ] Crear modelos Bronze (`models/bronze/sma/raw_*.sql`) como vistas con renombrado a `snake_case`.
-* [ ] Construir Staging (`v_stg_*`) usando `automate_dv.stage` para generar `hk_*` y `hd_*`.
+* [ ] Implementar macro de normalización de fechas `macros/arcotel_mes_ano_to_date.sql` para sanear la inconsistencia de cierres anuales (`'2008'` = Diciembre) y meses compactos (`'Ene2026'`).
+* [ ] Crear modelos Bronze (`models/bronze/sma/sma_*.sql`) como vistas sobre las tablas Delta de Databricks.
+* [ ] Construir Staging (`v_stg_*`) usando `automate_dv.stage` para generar hash keys (`hk_*`) y hash diffs (`hd_*`).
 * [ ] Construir `hub_operadora`, `hub_servicio`, `hub_modalidad`, `hub_tecnologia`, sus `link_*` y `sat_*` usando macros declarativas de `AutomateDV` con `fromyaml`.
-* [ ] Agregar `schema.yml` con pruebas `unique`, `not_null` y `relationships`, y validar con `dbt build --select tag:layer:silver_rv --target dev`.
+* [ ] Agregar pruebas en `schema.yml` (`unique`, `not_null` y `relationships`), y validar con `dbt build --select tag:layer:silver_rv --profiles-dir docker --target dev`.
 
 ### Fase 3: Capa Silver Business Vault
 
