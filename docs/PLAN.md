@@ -263,7 +263,7 @@ ec-telecom-data-platform/
 
 ### Fase 2: Capa Bronze y Silver Raw Vault (dbt + AutomateDV)
 
-* [ ] Implementar macro de normalización de fechas `macros/arcotel_mes_ano_to_date.sql` para sanear la inconsistencia de cierres anuales (`'2008'` = Diciembre) y meses compactos (`'Ene2026'`).
+* [ ] Implementar macro de normalización de fechas `macros/parse_arcotel_date.sql` para sanear la inconsistencia de cierres anuales (`'2008'` = Diciembre) y meses compactos (`'Ene2026'`).
 * [ ] Crear modelos Bronze (`models/bronze/sma/sma_*.sql`) como vistas sobre las tablas Delta de Databricks.
 * [ ] Construir Staging (`v_stg_*`) usando `automate_dv.stage` para generar hash keys (`hk_*`) y hash diffs (`hd_*`).
 * [ ] Construir `hub_operadora`, `hub_servicio`, `hub_modalidad`, `hub_tecnologia`, sus `link_*` y `sat_*` usando macros declarativas de `AutomateDV` con `fromyaml`.

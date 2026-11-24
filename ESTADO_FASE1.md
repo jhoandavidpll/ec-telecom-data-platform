@@ -96,5 +96,5 @@ En esta sesión se establecieron los cimientos de la **Fase 1 (Ingesta Dinámica
    * Aprobar el merge en GitHub.
 6. **Inicio de Fase 2 (dbt + Data Vault 2.0):** [SIGUIENTE SESIÓN]
    * Crear rama `feat/jhoan/issue-2-dbt-datavault`.
-   * Implementar macro de parseo de fechas `arcotel_mes_ano_to_date.sql`.
+   * Implementar macro de parseo de fechas `parse_arcotel_date.sql`.
    * Implementar modelos Raw Vault (`v_stg_*`, `hub_*`, `link_*`, `sat_*`).
