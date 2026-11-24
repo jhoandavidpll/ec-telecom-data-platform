@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: arcotel_sma
+    description: "Capa Bronze cruda de ARCOTEL para Servicio Móvil Avanzado (SMA) en Databricks Delta Lake"
+    schema: "{{ target.name }}_bronze_arcotel"
+    tables:
+      - name: sma_lineas_servicio
+        description: "Líneas activas del SMA por operadora, servicio y densidad (ARCOTEL 1.1.1)"
+      - name: sma_lineas_modalidad
+        description: "Líneas activas del SMA por modalidad pospago vs prepago (ARCOTEL 1.1.2)"
+      - name: sma_lineas_tecnologia
+        description: "Líneas activas del SMA por tecnología 2G, 3G, 4G, 5G (ARCOTEL 1.1.3)"

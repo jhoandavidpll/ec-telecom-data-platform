@@ -44,7 +44,7 @@ El flujo estándar es:
 ### Nombres de Ramas
 
 Las ramas deben seguir estrictamente el formato:
-`type/user/TASKxxx-short-description`
+`type/user/(issue-<num>|task-<num>|<num>)-short-description`
 
 * **`type`:**
   * `feat`: Nueva funcionalidad (ej. nuevo dominio ARCOTEL, nuevo Hub/Satélite, nuevo scraper).
@@ -54,19 +54,20 @@ Las ramas deben seguir estrictamente el formato:
   * `docs`: Exclusivamente documentación (`README.md`, `PLAN.md`, `model_documentation.md`).
   * `test`: Adición o ajuste de pruebas unitarias o tests de dbt.
 * **`user`:** Usuario de GitHub del creador (en minúsculas).
-* **`TASKxxx`:** Identificador del ticket/issue asociado.
+* **`issue-<num> / task-<num> / <num>`:** Identificador del ticket o **GitHub Issue** asociado (ej. `issue-1`, `task-1`, `1` o `TASK001`).
 * **`short-description`:** De 2 a 4 palabras en `kebab-case` (minúsculas separadas por guiones).
 
 ✅ **Ejemplos Correctos:**
-* `feat/jhoan/TASK001-lineas-activas`
-* `fix/jhoan/TASK014-nulos-operadora`
-* `docs/jhoan/TASK003-guia-data-vault`
-* `chore/jhoan/TASK005-ci-github-actions`
+* `feat/jhoan/issue-1-ingesta-arcotel`
+* `feat/jhoan/1-lineas-activas`
+* `fix/jhoan/issue-14-nulos-operadora`
+* `docs/jhoan/task-3-guia-data-vault`
+* `chore/jhoan/issue-5-ci-github-actions`
 
 ❌ **Ejemplos Incorrectos:**
 * `jhoan_branch`
-* `feature/lineas_activas` (falta `user`, falta `TASKxxx` y usa guion bajo)
-* `feat/jhoan/fix-bug` (falta `TASKxxx`)
+* `feature/lineas_activas` (falta `user`, falta el identificador de issue y usa guion bajo)
+* `feat/jhoan/fix-bug` (falta el identificador de issue)
 
 ### Mensajes de Commit
 

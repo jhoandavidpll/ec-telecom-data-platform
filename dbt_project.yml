@@ -1,0 +1,70 @@
+name: 'ec_telecom'
+version: '1.0.0'
+config-version: 2
+profile: 'ec_telecom'
+
+model-paths: ["models"]
+analysis-paths: ["analysis"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  # Esquemas canónicos por capa (resueltos con generate_schema_name para dev_, qas_, prd_)
+  bronze_arcotel_schema: "bronze_arcotel"
+  silver_rv_sma_schema: "silver_rv_sma"
+  silver_bv_sma_schema: "silver_bv_sma"
+  gold_sma_schema: "gold_sma"
+  dq_schema: "dq"
+
+models:
+  ec_telecom:
+    # Modelos Bronze: Vistas sobre tablas crudas Delta
+    bronze:
+      +materialized: view
+      +schema: bronze_arcotel
+      +tags: ["layer:bronze", "domain:sma"]
+
+    # Modelos Silver Data Vault 2.0 (AutomateDV)
+    silver:
+      sma:
+        rv:
+          +tags: ["layer:silver_rv", "domain:sma"]
+          stg:
+            +materialized: view
+            +schema: silver_rv_sma
+          hubs:
+            +materialized: incremental
+            +schema: silver_rv_sma
+          links:
+            +materialized: incremental
+            +schema: silver_rv_sma
+          sats:
+            +materialized: incremental
+            +schema: silver_rv_sma
+        bv:
+          +tags: ["layer:silver_bv", "domain:sma"]
+          pits:
+            +materialized: table
+            +schema: silver_bv_sma
+          bsats:
+            +materialized: table
+            +schema: silver_bv_sma
+
+    # Modelos Gold: Star Schema y Features para MLOps
+    gold:
+      sma:
+        +materialized: table
+        +schema: gold_sma
+        +tags: ["layer:gold", "domain:sma"]
+
+    # Validaciones de integridad y calidad
+    dq:
+      +materialized: view
+      +schema: dq
+      +tags: ["layer:dq"]
